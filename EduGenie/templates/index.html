@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="EduGenie - AI powered learning assistant" />
+  <title>EduGenie | AI Learning Assistant</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="background-glow glow-one"></div>
+  <div class="background-glow glow-two"></div>
+
+  <main class="app-shell">
+    <header class="hero">
+      <div class="brand-mark">E</div>
+      <div>
+        <p class="eyebrow">AI-POWERED LEARNING</p>
+        <h1>EduGenie <span>🧠✨</span></h1>
+        <p class="subtitle">Your personal AI tutor for questions, explanations, quizzes, summaries and learning paths.</p>
+      </div>
+    </header>
+
+    <section class="feature-grid">
+      <button class="feature-card active" data-mode="qa">
+        <span class="feature-icon">💬</span>
+        <strong>Ask</strong>
+        <small>Get an answer</small>
+      </button>
+      <button class="feature-card" data-mode="explain">
+        <span class="feature-icon">💡</span>
+        <strong>Explain</strong>
+        <small>Understand a concept</small>
+      </button>
+      <button class="feature-card" data-mode="summary">
+        <span class="feature-icon">📝</span>
+        <strong>Summarize</strong>
+        <small>Shorten long text</small>
+      </button>
+      <button class="feature-card" data-mode="quiz">
+        <span class="feature-icon">🎯</span>
+        <strong>Quiz</strong>
+        <small>Test your knowledge</small>
+      </button>
+      <button class="feature-card" data-mode="learn">
+        <span class="feature-icon">🗺️</span>
+        <strong>Learn</strong>
+        <small>Build a learning path</small>
+      </button>
+    </section>
+
+    <section class="workspace">
+      <div class="workspace-heading">
+        <div>
+          <p class="section-kicker" id="modeKicker">Q&A</p>
+          <h2 id="modeTitle">Ask EduGenie a question</h2>
+        </div>
+        <span class="status-pill"><span class="status-dot"></span> Gemini AI</span>
+      </div>
+
+      <form id="taskForm">
+        <label for="userInput" id="inputLabel">Your question</label>
+        <textarea id="userInput" rows="7" placeholder="Example: Which is the largest ocean?" required></textarea>
+        <div class="input-footer">
+          <span id="charCount">0 / 20,000</span>
+          <button class="primary-button" type="submit" id="submitButton">
+            <span id="buttonIcon">✨</span>
+            <span id="buttonText">Get Answer</span>
+          </button>
+        </div>
+      </form>
+
+      <div id="loading" class="loading hidden">
+        <div class="spinner"></div>
+        <span>EduGenie is thinking...</span>
+      </div>
+
+      <section id="resultCard" class="result-card hidden">
+        <div class="result-heading">
+          <span id="resultIcon">✨</span>
+          <strong id="resultTitle">Result</strong>
+          <button type="button" id="copyButton" class="ghost-button">Copy</button>
+        </div>
+        <div id="resultContent" class="result-content"></div>
+      </section>
+    </section>
+
+    <footer>
+      <span>EduGenie</span>
+      <span>Built with FastAPI + Google Gemini</span>
+    </footer>
+  </main>
+
+  <script>
+    const modes = {
+      qa: {
+        kicker: "Q&A",
+        title: "Ask EduGenie a question",
+        label: "Your question",
+        placeholder: "Example: Which is the largest ocean?",
+        button: "Get Answer",
+        icon: "💬",
+        result: "Answer",
+        endpoint: "/qa",
+        field: "text"
+      },
+      explain: {
+        kicker: "EXPLANATION",
+        title: "Need an explanation?",
+        label: "Topic to explain",
+        placeholder: "Example: Explain quantum computing for a beginner",
+        button: "Explain",
+        icon: "💡",
+        result: "Explanation",
+        endpoint: "/explain",
+        field: "topic"
+      },
+      summary: {
+        kicker: "SUMMARY",
+        title: "Summarize a paragraph",
+        label: "Content to summarize",
+        placeholder: "Paste a long educational passage here...",
+        button: "Summarize",
+        icon: "📝",
+        result: "Summary",
+        endpoint: "/summarize",
+        field: "text"
+      },
+      quiz: {
+        kicker: "QUIZ",
+        title: "Test your understanding",
+        label: "Topic or passage for the quiz",
+        placeholder: "Example: Create a quiz about the Pythagorean theorem...",
+        button: "Generate Quiz",
+        icon: "🎯",
+        result: "Your Quiz",
+        endpoint: "/quiz",
+        field: "text"
+      },
+      learn: {
+        kicker: "LEARNING PATH",
+        title: "Build a learning path",
+        label: "What do you want to learn?",
+        placeholder: "Example: SQL from beginner to advanced",
+        button: "Get Recommendations",
+        icon: "🗺️",
+        result: "Learning Recommendations",
+        endpoint: "/learn/recommendations",
+        field: "topic"
+      }
+    };
+
+    let currentMode = "qa";
+    let lastResultText = "";
+
+    const featureCards = document.querySelectorAll(".feature-card");
+    const form = document.getElementById("taskForm");
+    const input = document.getElementById("userInput");
+    const charCount = document.getElementById("charCount");
+    const loading = document.getElementById("loading");
+    const resultCard = document.getElementById("resultCard");
+    const resultContent = document.getElementById("resultContent");
+    const modeKicker = document.getElementById("modeKicker");
+    const modeTitle = document.getElementById("modeTitle");
+    const inputLabel = document.getElementById("inputLabel");
+    const submitButton = document.getElementById("submitButton");
+    const buttonText = document.getElementById("buttonText");
+    const buttonIcon = document.getElementById("buttonIcon");
+    const resultIcon = document.getElementById("resultIcon");
+    const resultTitle = document.getElementById("resultTitle");
+
+    function setMode(mode) {
+      currentMode = mode;
+      const config = modes[mode];
+
+      featureCards.forEach(card => {
+        card.classList.toggle("active", card.dataset.mode === mode);
+      });
+
+      modeKicker.textContent = config.kicker;
+      modeTitle.textContent = config.title;
+      inputLabel.textContent = config.label;
+      input.placeholder = config.placeholder;
+      buttonText.textContent = config.button;
+      buttonIcon.textContent = config.icon;
+      resultIcon.textContent = config.icon;
+      resultTitle.textContent = config.result;
+
+      input.value = "";
+      updateCount();
+      resultCard.classList.add("hidden");
+      resultContent.innerHTML = "";
+      input.focus();
+    }
+
+    function updateCount() {
+      charCount.textContent = `${input.value.length.toLocaleString()} / 20,000`;
+    }
+
+    function escapeHtml(value) {
+      return value
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function renderText(text) {
+      lastResultText = text;
+      const escaped = escapeHtml(text);
+      return escaped
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/^### (.*)$/gm, "<h4>$1</h4>")
+        .replace(/^## (.*)$/gm, "<h3>$1</h3>")
+        .replace(/^# (.*)$/gm, "<h3>$1</h3>")
+        .replace(/^- (.*)$/gm, "<li>$1</li>")
+        .replace(/\n\n/g, "<br><br>")
+        .replace(/\n/g, "<br>");
+    }
+
+    function renderQuiz(questions) {
+      lastResultText = questions.map((q, i) =>
+        `${i + 1}. ${q.question}\n${q.options.map((o, j) => `${String.fromCharCode(65+j)}. ${o}`).join("\n")}\nAnswer: ${q.answer}`
+      ).join("\n\n");
+
+      resultContent.innerHTML = "";
+      const quizForm = document.createElement("div");
+      quizForm.className = "quiz-list";
+
+      questions.forEach((q, index) => {
+        const card = document.createElement("article");
+        card.className = "quiz-question";
+
+        const title = document.createElement("h3");
+        title.textContent = `${index + 1}. ${q.question}`;
+        card.appendChild(title);
+
+        q.options.forEach(option => {
+          const label = document.createElement("label");
+          label.className = "quiz-option";
+          const radio = document.createElement("input");
+          radio.type = "radio";
+          radio.name = `question-${index}`;
+          radio.value = option;
+          label.appendChild(radio);
+          const span = document.createElement("span");
+          span.textContent = option;
+          label.appendChild(span);
+          card.appendChild(label);
+        });
+
+        const feedback = document.createElement("div");
+        feedback.className = "quiz-feedback hidden";
+        feedback.dataset.answer = q.answer;
+        card.appendChild(feedback);
+        quizForm.appendChild(card);
+      });
+
+      const check = document.createElement("button");
+      check.type = "button";
+      check.className = "primary-button quiz-check";
+      check.textContent = "Check Answers";
+      check.addEventListener("click", () => {
+        let score = 0;
+        questions.forEach((q, index) => {
+          const selected = document.querySelector(`input[name="question-${index}"]:checked`);
+          const feedback = document.querySelectorAll(".quiz-feedback")[index];
+          feedback.classList.remove("hidden");
+
+          if (selected && selected.value === q.answer) {
+            score++;
+            feedback.textContent = "✓ Correct";
+            feedback.className = "quiz-feedback correct";
+          } else {
+            feedback.textContent = `✗ Correct answer: ${q.answer}`;
+            feedback.className = "quiz-feedback incorrect";
+          }
+        });
+        check.textContent = `Score: ${score} / ${questions.length}`;
+      });
+
+      resultContent.appendChild(quizForm);
+      resultContent.appendChild(check);
+    }
+
+    featureCards.forEach(card => {
+      card.addEventListener("click", () => setMode(card.dataset.mode));
+    });
+
+    input.addEventListener("input", updateCount);
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const value = input.value.trim();
+
+      if (!value) return;
+
+      const config = modes[currentMode];
+      loading.classList.remove("hidden");
+      resultCard.classList.add("hidden");
+      submitButton.disabled = true;
+
+      try {
+        const response = await fetch(config.endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ [config.field]: value })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || data.error || "Something went wrong.");
+        }
+
+        resultCard.classList.remove("hidden");
+
+        if (currentMode === "qa") {
+          resultContent.innerHTML = renderText(data.answer);
+        } else if (currentMode === "explain") {
+          resultContent.innerHTML = renderText(data.explanation);
+        } else if (currentMode === "summary") {
+          resultContent.innerHTML = renderText(data.summary);
+        } else if (currentMode === "learn") {
+          resultContent.innerHTML = renderText(data.recommendation);
+        } else if (currentMode === "quiz") {
+          renderQuiz(data.quiz);
+        }
+
+        resultCard.scrollIntoView({ behavior: "smooth", block: "start" });
+      } catch (error) {
+        resultCard.classList.remove("hidden");
+        resultContent.innerHTML = `<div class="error-box">⚠️ ${escapeHtml(error.message)}</div>`;
+      } finally {
+        loading.classList.add("hidden");
+        submitButton.disabled = false;
+      }
+    });
+
+    document.getElementById("copyButton").addEventListener("click", async () => {
+      if (!lastResultText) return;
+      try {
+        await navigator.clipboard.writeText(lastResultText);
+        document.getElementById("copyButton").textContent = "Copied!";
+        setTimeout(() => document.getElementById("copyButton").textContent = "Copy", 1200);
+      } catch {
+        document.getElementById("copyButton").textContent = "Copy failed";
+      }
+    });
+
+    setMode("qa");
+  </script>
+</body>
+</html>

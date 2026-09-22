@@ -1,0 +1,2 @@
+This project scaffold is generated for educational/project-development use.
+Third-party packages retain their own licenses.

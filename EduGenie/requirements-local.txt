@@ -1,0 +1,6 @@
+# Optional local explanation model from the project documentation.
+# Install this only if you want USE_LOCAL_EXPLAINER=true.
+-r requirements.txt
+transformers>=4.57,<5
+torch>=2.6
+sentencepiece>=0.2.0
